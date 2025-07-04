@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>📈 Börse</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background-color: #0f1117;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #e0e3e7;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2.2rem;
+      margin-bottom: 40px;
+      color: #ffffff;
+    }
+    #stocks {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background-color: #1a1e29;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      transition: transform 0.2s ease;
+      cursor: pointer;
+    }
+    .card:hover {
+      transform: scale(1.02);
+    }
+    .stock-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .ticker {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .price {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+    .up {
+      color: #4fd18b;
+    }
+    .down {
+      color: #e05f6f;
+    }
+    .chart-container {
+      position: relative;
+      height: 100px;
+    }
+
+    /* Modal Styles */
+    #modalOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    #modal {
+      background-color: #1a1e29;
+      border-radius: 15px;
+      padding: 30px;
+      width: 90%;
+      max-width: 600px;
+      box-shadow: 0 0 25px rgba(79, 209, 197, 0.6);
+      position: relative;
+      color: #e0e3e7;
+    }
+    #modal h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-weight: 700;
+      font-size: 2rem;
+      text-align: center;
+    }
+    #modal canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+    #closeBtn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      border: none;
+      font-size: 1.8rem;
+      color: #999;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    #closeBtn:hover {
+      color: #4fd18b;
+    }
+  </style>
+</head>
+<body>
+
+<h1>📊 Virtuelle Börse – Live Übersicht</h1>
+<div id="stocks"></div>
+
+<!-- Modal -->
+<div id="modalOverlay">
+  <div id="modal">
+    <button id="closeBtn" title="Schließen">&times;</button>
+    <h2 id="modalTicker">Aktie</h2>
+    <canvas id="modalChart"></canvas>
+  </div>
+</div>
+
+<script>
+  const SHEET_URL = "https://script.google.com/macros/s/AKfycbwGc29tti6LAgvB-dfF0Ia_3J_N8zm7DonDBTzWKl_DYrSp6tUZ5r-sjNupGJCu88Tdzg/exec";
+
+  let modalChartInstance;
+
+  async function fetchStockData() {
+    const res = await fetch(SHEET_URL);
+    const json = await res.json();
+    return json.map(row => {
+      const prices = [
+        row["Preis 1"], row["Preis 2"], row["Preis 3"],
+        row["Preis 4"], row["Preis 5"]
+      ].map(p => parseFloat(p)).filter(n => !isNaN(n));
+
+      return {
+        ticker: row["Ticker"],
+        lastPrice: parseFloat(row["Letzter Preis"]),
+        prices,
+      };
+    }).filter(s => s.ticker && !isNaN(s.lastPrice));
+  }
+
+function renderStocks(stocks) {
+  const container = document.getElementById("stocks");
+  container.innerHTML = "";
+
+  stocks.forEach((stock, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const header = document.createElement("div");
+    header.className = "stock-header";
+
+    const ticker = document.createElement("div");
+    ticker.className = "ticker";
+    ticker.textContent = stock.ticker;
+
+    const price = document.createElement("div");
+    price.className = "price";
+
+    const newestPrice = stock.prices[0];
+
+    const change = stock.prices.length > 1 ? newestPrice - stock.prices[1] : 0;
+
+    price.classList.add(change >= 0 ? "up" : "down");
+    price.textContent = newestPrice.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+    header.appendChild(ticker);
+    header.appendChild(price);
+
+    const chartContainer = document.createElement("div");
+    chartContainer.className = "chart-container";
+
+    const canvas = document.createElement("canvas");
+    canvas.id = "chart-" + index;
+    chartContainer.appendChild(canvas);
+
+    card.appendChild(header);
+    card.appendChild(chartContainer);
+    container.appendChild(card);
+
+new Chart(canvas, {
+  type: 'line',
+  data: {
+    labels: ["Preis 5", "Preis 4", "Preis 3", "Preis 2", "Preis 1"].reverse(),
+    datasets: [{
+      data: [...stock.prices].reverse(),
+      borderColor: change >= 0 ? "#4fd18b" : "#e05f6f",
+      backgroundColor: "rgba(0,0,0,0)",
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: false }
+    },
+    scales: {
+      x: { display: false },
+      y: { display: false }
+    }
+  }
+});
+
+
+    card.addEventListener('click', () => openModal(stock));
+  });
+}
+
+const companyNames = {
+  "VAPD": "Vapid Motor Company",
+  "MOSY": "Mosley's",
+  "CGG": "Canis Global Group",
+};
+
+
+  function openModal(stock) {
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalTicker = document.getElementById('modalTicker');
+    const ctx = document.getElementById('modalChart').getContext('2d');
+	
+	const fullName = companyNames[stock.ticker] || stock.ticker;
+	modalTicker.textContent = fullName + " (" + stock.ticker + ")";
+
+
+    if (modalChartInstance) {
+      modalChartInstance.destroy();
+    }
+
+modalChartInstance = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ["vor 4 Stunden", "vor 3 Stunden", "vor 2 Stunden", "vor 1 Stunde", "Neueste"],
+    datasets: [{
+      label: stock.ticker + " Preisverlauf",
+      data: [...stock.prices].reverse(),
+      borderColor: '#4fd18b',
+      backgroundColor: 'rgba(79, 209, 139, 0.25)',
+      tension: 0.4,
+      pointRadius: 6,
+      pointHoverRadius: 8,
+      borderWidth: 3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: true, labels: { color: '#e0e3e7', font: { size: 14 } } },
+      tooltip: {
+        enabled: true,
+        callbacks: {
+          label: ctx => ctx.parsed.y.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Preisindex',
+          color: '#aaa',
+          font: { size: 12 }
+        },
+        ticks: { color: '#ccc' }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Preis ($)',
+          color: '#aaa',
+          font: { size: 12 }
+        },
+        ticks: { color: '#ccc' }
+      }
+    }
+  }
+});
+
+
+    modalOverlay.style.display = "flex";
+  }
+
+  function closeModal() {
+    const modalOverlay = document.getElementById('modalOverlay');
+    modalOverlay.style.display = "none";
+  }
+
+  document.getElementById('closeBtn').addEventListener('click', closeModal);
+  document.getElementById('modalOverlay').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  async function init() {
+    const stocks = await fetchStockData();
+    renderStocks(stocks);
+  }
+
+  init();
+  setInterval(init, 1800000);
+</script>
+
+</body>
+</html>

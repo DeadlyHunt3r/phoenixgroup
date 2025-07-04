@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Aktienkurs Rechner (Dunkelmodus)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #121212;
+            color: #f4f4f4;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+        }
+        h1 {
+            text-align: center;
+            color: #ffffff;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #e0e0e0;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            background: #333;
+            color: #f4f4f4;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #1e88e5;
+            color: #ffffff;
+            padding: 10px 15px;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1565c0;
+        }
+        .result {
+            background: #212121;
+            color: #f4f4f4;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 5px;
+            border: 1px solid #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Aktienkurs Rechner</h1>
+
+    <div class="input-group">
+        <label>Kontostand der Firma ($):</label>
+        <input type="text" id="kontostand" placeholder="z. B. 1.500.000" oninput="formatNumberInput(this)">
+    </div>
+    <div class="input-group">
+        <label>Wert der Fahrzeuge ($):</label>
+        <input type="text" id="fahrzeuge" placeholder="z. B. 2.000.000" oninput="formatNumberInput(this)">
+    </div>
+    <div class="input-group">
+        <label>Anzahl Mitarbeiter:</label>
+        <input type="text" id="mitarbeiter" placeholder="z. B. 6" oninput="formatNumberInput(this)">
+    </div>
+    <div class="input-group">
+        <label>Branchenbonus (%):</label>
+        <input type="text" id="branchenbonus" placeholder="z. B. 8" oninput="formatNumberInput(this)">
+    </div>
+    <div class="input-group">
+        <label>Geplante Anzahl Aktien:</label>
+        <input type="text" id="aktien" placeholder="z. B. 7.000" oninput="formatNumberInput(this)">
+    </div>
+
+    <button onclick="berechneAktienkurs()">Kurs berechnen</button>
+    <div class="result" id="ergebnis"></div>
+
+    <script>
+        function formatNumberInput(input) {
+            let value = input.value.replace(/\./g, '');
+            value = value.replace(/[^0-9]/g, '');
+            if (value === '') {
+                input.value = '';
+                return;
+            }
+            input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function berechneAktienkurs() {
+            const kontostand = parseFloat(document.getElementById('kontostand').value.replace(/\./g, '')) || 0;
+            const fahrzeuge = parseFloat(document.getElementById('fahrzeuge').value.replace(/\./g, '')) || 0;
+            const mitarbeiter = parseInt(document.getElementById('mitarbeiter').value.replace(/\./g, '')) || 0;
+            const branchenbonus = parseFloat(document.getElementById('branchenbonus').value.replace(/\./g, '')) || 0;
+            const aktien = parseInt(document.getElementById('aktien').value.replace(/\./g, '')) || 1;
+
+            const grundwert = kontostand + fahrzeuge;
+            const mitarbeiterBonus = (mitarbeiter > 5) ? (0.02 * (mitarbeiter - 5)) : 0;
+            const gesamtbonus = 1 + mitarbeiterBonus + (branchenbonus / 100);
+            const gesamtwert = grundwert * gesamtbonus;
+            const kurs = gesamtwert / aktien;
+
+            document.getElementById('ergebnis').innerHTML =
+                `<strong>Startwert pro Aktie:</strong> ${kurs.toFixed(2)} $<br>` +
+                `<strong>Gesamtbewertung:</strong> ${gesamtwert.toLocaleString('de-DE')} $`;
+        }
+    </script>
+</body>
+</html>
